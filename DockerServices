@@ -1,0 +1,147 @@
+COMMANDS
+
+check ports: 
+    $netstat -tulnp | grep
+
+join leader 
+    $docker swarm join --token 'SWMTKN-1-20abq3psfevm2talkqyx6rgiepi2n5pfq9fxib51l66owuxt69-cv732qwwz4djvyqiv676ivtl4' 10.0.2.52:2377
+    
+    $docker swarm join --token 'SWMTKN-1-3cupbfgz1h9qp5alfu8a9t0tm6izbib308b2hgbziu9ag7xibf-2q55wfamkyd4wcfvpofij9dak' 10.0.2.75:2377
+
+
+SWARM SERVICES: 
+
+    $docker network create --driver overlay swarm-microservice-net
+
+    $docker service create \
+                    --name eureka \
+                    --replicas 1 \
+                    --constraint=node.role==manager \
+                    --update-delay 10s \
+                    --publish 8761:8761 \
+                    --network swarm-microservice-net \
+                    --hostname eureka \
+                    fr-eureka-srv:latest
+
+    $docker service create \
+                --name DocumentService \
+                --replicas 2 \
+                --constraint=node.role!=manager \
+                --update-delay 10s \
+                --publish 8090:8090 \
+                --network swarm-microservice-net \
+                --hostname DocumentService \
+                fr-doc-srv:latest
+
+    $docker service update --replicas 1 --constraint-add node==worker1 DocumentService	
+
+    SCALE UP & DOWN:
+            $docker service update --replicas 4 DocumentService
+            $docker service update --replicas 2 DocumentService
+            $docker service scale DocumentService=2
+    PROCESS LOOKUP:
+            $docker service ps DocumentService
+
+    $docker service create \
+                    --name EdgeService \
+                    --replicas 1 \
+                    --constraint=node.role==manager \
+                    --update-delay 10s \
+                    --publish 8080:8080 \
+                    --network swarm-microservice-net \
+                    --hostname EdgeService \
+                    fr-edge-srv:latest
+
+
+$docker run -d -t --rm \
+        -p 8090:8090 \
+        -p 1433:1433 \
+        --name DocumentService \
+        --hostname DocumentService \
+        --network microservicenet \
+        fr-doc-srv
+
+
+$docker service create \
+  --name=docker-swarm-viz \
+  --publish=8888:8080/tcp \
+  --replicas 1 \
+  --constraint=node.role==manager \
+  --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+  dockersamples/visualizer    
+
+$docker service create \
+        --network swarm-microservice-net \
+        --name portainer \
+        --publish 9000:9000 \
+        --constraint 'node.role == manager' \
+        --mount type=bind,src=//var/run/docker.sock,dst=/var/run/docker.sock \
+        portainer/portainer \
+        -H unix:///var/run/docker.sock
+
+#DOCKER COMPOSE - docker-compose.yml must be in dir.
+$docker-compose up
+$docker-compose down
+$docker-compose ls
+
+
+#DOCKER STACK - deploy a stack (docker-compose.yml) to the swarm setup.
+$docker stack deploy -c docker-compose.yml dev_stack
+$docker stack ls
+$docker stack rm dev_stack
+$docker stack ps dev_stack
+$docker stack services dev_stack
+
+
+
+// TODO
+A. setup in QA box -- BOX isn't ready.
+B. remote access to service -- currently serve via virtual machine.
+
+1. create ad-hoc service with static values,
+2. log request-response.
+3. calculate avg. time instance wise with bulk request.
+4. simulate the load-balancing over workers &/or instances
+5. put 1,2 n 3 in matrix
+
+// 28-11-2017
+0. Identify the tables for lock purpose.
+   a. get_document_list: SPROC
+   b. get_document_meta_data: SPROC
+   c. get_config: SPROC
+1. setup QA(1-leader, 2-workers) in cloud
+2. point DB to cloud version
+3. deploy the images to cloud
+4. similar excercise load testing over cloud, better result expected.
+5. test client must be over 3-laptops.
+6. generate the SQL report on performace.
+7. Repeat step 5 & 6 by Exceptional scenario -- locking tables
+8. wrting instruction from step 1-5.
+        i. linux set-up
+        ii. docker engine & ocr set-up. 
+
+
+// install docker https://docs.docker.com/engine/installation/linux/docker-ce/ubuntu
+
+$ curl -fsSL get.docker.com -o get-docker.sh
+$ sudo sh get-docker.sh
+
+// install machine 
+$ curl -L https://github.com/docker/machine/releases/download/v0.13.0/docker-machine-`uname -s`-`uname -m` >/tmp/docker-machine &&
+$ chmod +x /tmp/docker-machine &&
+$ sudo cp /tmp/docker-machine /usr/local/bin/docker-machine
+
+// install compose
+$ sudo curl -L https://github.com/docker/compose/releases/download/1.17.0/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+$ sudo chmod +x /usr/local/bin/docker-compose
+$ docker-compose --version
+
+====================
+notes for demo
+1. docker console with 2 instance ready
+2. soapui test (180sec) initiated 
+2.0 collect the instanceids
+2.1 ssms monitor script
+3. scaleup the documnet service ins to 4
+4. collect new instanceids
+5. ssms monitor script with new instanceids

@@ -1,0 +1,76 @@
+version: "3.4"
+services:
+  eureka:
+    image: fr-eureka-srv
+    ports:
+      - "18761:8761"
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+      placement:
+        constraints: [node.role == manager]
+    networks: 
+      - docker-compose-network
+
+  DocumentService:
+    image: fr-doc-srv
+    ports: 
+      - "18090:8090"
+    depends_on: 
+      - eureka
+    deploy:
+      mode: replicated
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+      placement:
+        constraints: [node.role != manager]
+    networks: 
+      - docker-compose-network
+
+  EconService:
+    image: fr-econ-srv
+    ports: 
+      - "18092:8092"
+    depends_on: 
+      - eureka
+    deploy:
+      mode: replicated
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+      placement:
+        constraints: [node.role == manager]
+    networks: 
+      - docker-compose-network
+    
+  EdgeService:
+    image: fr-edge-srv
+    ports: 
+      - "18080:8080"
+    depends_on: 
+      - DocumentService
+    deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+      placement:
+        constraints: [node.role == manager]
+    networks: 
+      - docker-compose-network
+
+networks: 
+  docker-compose-network:
+    driver: overlay
+

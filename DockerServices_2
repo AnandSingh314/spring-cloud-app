@@ -1,0 +1,60 @@
+SWARM SERVICES: 
+
+    $docker network create --driver overlay swarm-microservice-net
+
+    $docker service create \
+                    --name eureka \
+                    --replicas 1 \
+                    --constraint=node.role==manager \
+                    --update-delay 10s \
+                    --publish 8761:8761 \
+                    --env "SPRING_PROFILES_ACTIVE=cloud" \
+                    --network swarm-microservice-net \
+                    --hostname eureka \
+                    --detach=false \
+                    anandvijaysingh/fr-eureka-srv:2
+
+    $docker service create \
+                --name EconService \
+                --replicas 2 \
+                --constraint=node.role!=manager \
+                --update-delay 10s \
+                --publish 8092:8092 \
+                --env "SPRING_PROFILES_ACTIVE=cloud" \
+                --network swarm-microservice-net \
+                --hostname EconService \
+                --detach=false \
+                anandvijaysingh/fr-econ-srv:2
+
+    $docker service create \
+                --name DocumentService \
+                --replicas 2 \
+                --constraint=node.role!=manager \
+                --update-delay 10s \
+                --publish 8090:8090 \
+                --env "SPRING_PROFILES_ACTIVE=cloud" \
+                --network swarm-microservice-net \
+                --hostname DocumentService \
+                --detach=false \
+                anandvijaysingh/fr-doc-srv:2
+
+    $docker service update --replicas 1 --constraint-add node==worker1 DocumentService	
+
+    SCALE UP & DOWN:
+            $docker service update --replicas 4 DocumentService
+            $docker service update --replicas 2 DocumentService
+            $docker service scale DocumentService=2
+    PROCESS LOOKUP:
+            $docker service ps DocumentService
+
+    $docker service create \
+                    --name EdgeService \
+                    --replicas 1 \
+                    --constraint=node.role==manager \
+                    --update-delay 10s \
+                    --publish 8080:8080 \
+                    --env "SPRING_PROFILES_ACTIVE=cloud" \
+                    --network swarm-microservice-net \
+                    --hostname EdgeService \
+                    --detach=false \
+                    anandvijaysingh/fr-edge-srv:2
